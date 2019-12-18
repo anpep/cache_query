@@ -27,7 +27,9 @@ struct perf_counter {
 /* measured performance events for child process */
 static struct perf_counter g_counters[] = {
     { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, "cache_misses" },
-    { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, "cache_references" }
+    { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, "cache_references" },
+    { PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, "instructions" },
+    { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, "cycles" }
 };
 
 /* stub for perf_event_open(2) syscall which as of version 2.30 is not yet
