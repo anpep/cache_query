@@ -1,0 +1,6 @@
+cache_query(1) -- simple cache reference counter with perf_event_open(2)
+Copyright (C) 2019 Angel P.
+
+This program is licensed under the public domain and may be modified and
+redistributed at will with no restrictions or licensing constraints.
+

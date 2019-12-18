@@ -1,0 +1,42 @@
+cache_query
+===========
+
+Introduction
+------------
+cache_query is an experimental (and buggy) framework for simple cache access
+benchmarks on C programs.
+
+In order to write a benchmark, include your C program inside of the `test'
+directory and annotate it accordingly. For instance,
+
+    1   //! var variantName_16: -DCOLS=16 -DHELLO
+    2   //! var variantName_32: -DCOLS=32 -DEXAMPLE
+
+Note that the syntax for variant specification is as follows:
+    
+    //! var <identificator>_<number>: <extra CFLAGS>
+
+The supplied <number> will be the value of the X axis in the generated plot,
+while the Y axis will hold the cache miss rate captured during execution.
+
+Hacking
+-------
+cache_query relies on the perf_event_open(2) system call for counting hardware
+performance events (PERF_COUNT_HW_CACHE_MISSES and PERF_COUNT_HW_CACHE_REFERENCES
+as of now). Refer to the cache_query.c file in order to add or remove performance
+counters.
+
+The current code for reading child process events is somewhat buggy, and may not
+be indicative of the real state of the executing process. Don't use cache_query
+for production or mission-critical systems.
+
+Contact
+-------
+Contact angel <angel@ttm.sh> for any question or suggestion regarding this software.
+
+Licensing
+---------
+This software is licensed under the public domain and may be modified and
+redistributed at will with no restrictions or licensing constraints.
+
+
