@@ -61,11 +61,12 @@ static int setup_count(pid_t pid, int type, int config)
    
     /* PERF_FLAG_FD_CLOEXEC avoids leaking counter descriptor to child process */
     if ((fd = perf_event_open(&attrs, pid, -1, -1, PERF_FLAG_FD_CLOEXEC)) == -1) {
-        perror("perf_event_open");
         kill(pid, SIGKILL);
-        exit(EXIT_FAILURE);
+        perror("perf_event_open");
+        _exit(EXIT_FAILURE);
     }
-    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+    if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0)
+        return -1;
     return fd;
 }
 
@@ -75,10 +76,14 @@ static long long read_count(int fd)
 {
     long long count;
     
-    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-    read(fd, &count, sizeof(long long));
+    if (ioctl(fd, PERF_EVENT_IOC_DISABLE, 0) < 0) {
+        count = -1;
+        goto out;
+    }
+    if (read(fd, &count, sizeof(long long)) < 0)
+        count = -1;
+out:
     close(fd);
-
     return count;
 }
 
@@ -104,18 +109,23 @@ int main(int argc, char **argv)
             null_fd = open("/dev/null", O_WRONLY | O_CREAT, 0666);
             dup2(null_fd, STDOUT_FILENO); /* redirect stdout to /dev/null */
             sleep(1); /* FIXME: hack so that parent has a chance to perform perf_event_open(2) before exec */
-            execvp(argv[1], argv + 1);
+            if (execvp(argv[1], argv + 1) < 0)
+                perror("execvp");
+            _exit(EXIT_FAILURE);
         default: /* parent process */
             /* set up counters */
-            for (i = 0; i < NUMCOUNTERS; i++)
-                fd[i] = setup_count(pid, g_counters[i].type, g_counters[i].config);
+            for (i = 0; i < NUMCOUNTERS; i++) {
+                if ((fd[i] = setup_count(pid, g_counters[i].type, g_counters[i].config)) < 0) {
+                    perror("setup_count");
+                    _exit(EXIT_FAILURE);
+                }
+            }
             /* wait for child process to exit and handle child errors */
             if (waitpid(pid, &status, 0) == -1 || WEXITSTATUS(status))
                 _exit(EXIT_FAILURE);
             /* read and display results */
             for (i = 0; i < NUMCOUNTERS; i++)
                 printf("%s=%lld\n", g_counters[i].name, read_count(fd[i]));
-            break;
     }
     return 0;
 }
