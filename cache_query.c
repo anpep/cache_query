@@ -5,18 +5,16 @@
  * redistributed at will with no restrictions or licensing constraints.
  */
 
-#include <stdlib.h>
+#include <asm/unistd.h>
+#include <fcntl.h>
+#include <linux/perf_event.h>
+#include <signal.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <linux/perf_event.h>
-#include <asm/unistd.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <signal.h>
-
-#define NUMCOUNTERS (sizeof(g_counters) / sizeof(struct perf_counter))
+#include <unistd.h>
 
 /* contains performance event metadata */
 struct perf_counter {
@@ -33,6 +31,8 @@ static struct perf_counter g_counters[] = {
     { PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, "cycles" }
 };
 
+#define NUMCOUNTERS (sizeof(g_counters) / sizeof(struct perf_counter))
+
 /* stub for perf_event_open(2) syscall which as of version 2.30 is not yet
  * included in GNU libc */
 static long
@@ -44,8 +44,7 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 
 /* sets up a new performance event counter, simulating perf(1) behaviour
  * for consistency */
-static int
-setup_count(pid_t pid, int type, int config)
+static int setup_count(pid_t pid, int type, int config)
 {
     struct perf_event_attr attrs = {0};
     int fd;
@@ -72,8 +71,7 @@ setup_count(pid_t pid, int type, int config)
 
 /* reads an performance event counter and closes the descriptor associated to
  * the event */
-static long long
-read_count(int fd)
+static long long read_count(int fd)
 {
     long long count;
     
@@ -85,8 +83,7 @@ read_count(int fd)
 }
 
 /* program entry point */
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     int i;
     int status;
@@ -108,7 +105,6 @@ main(int argc, char **argv)
             dup2(null_fd, STDOUT_FILENO); /* redirect stdout to /dev/null */
             sleep(1); /* FIXME: hack so that parent has a chance to perform perf_event_open(2) before exec */
             execvp(argv[1], argv + 1);
-            _exit(127);
         default: /* parent process */
             /* set up counters */
             for (i = 0; i < NUMCOUNTERS; i++)
@@ -121,7 +117,6 @@ main(int argc, char **argv)
                 printf("%s=%lld\n", g_counters[i].name, read_count(fd[i]));
             break;
     }
-    close(null_fd);
     return 0;
 }
 
