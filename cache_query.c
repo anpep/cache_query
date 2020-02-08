@@ -14,6 +14,7 @@
 #include <asm/unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define NUMCOUNTERS (sizeof(g_counters) / sizeof(struct perf_counter))
 
@@ -90,14 +91,20 @@ main(int argc, char **argv)
     int i;
     int status;
     pid_t pid;
-    int null_fd = open("/dev/null", O_WRONLY | O_CREAT, 0666);
+    int null_fd;
     int fd[NUMCOUNTERS]; /* descriptors for counter data */
+
+    if (argc < 2) {
+        printf("usage: cache_query PROG [ARGS...]\n\n");
+        _exit(0);
+    }
 
     switch (pid = fork()) {
         case -1: /* failure */
             perror("fork");
-            exit(EXIT_FAILURE);
+            _exit(EXIT_FAILURE);
         case 0: /* child process */
+            null_fd = open("/dev/null", O_WRONLY | O_CREAT, 0666);
             dup2(null_fd, STDOUT_FILENO); /* redirect stdout to /dev/null */
             sleep(1); /* FIXME: hack so that parent has a chance to perform perf_event_open(2) before exec */
             execvp(argv[1], argv + 1);
@@ -108,12 +115,13 @@ main(int argc, char **argv)
                 fd[i] = setup_count(pid, g_counters[i].type, g_counters[i].config);
             /* wait for child process to exit and handle child errors */
             if (waitpid(pid, &status, 0) == -1 || WEXITSTATUS(status))
-                exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
             /* read and display results */
             for (i = 0; i < NUMCOUNTERS; i++)
                 printf("%s=%lld\n", g_counters[i].name, read_count(fd[i]));
             break;
     }
     close(null_fd);
+    return 0;
 }
 
